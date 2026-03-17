@@ -1,0 +1,174 @@
+import 'package:flutter/foundation.dart';
+import 'package:uuid/uuid.dart';
+import '../models/bottle.dart';
+import '../models/drink_entry.dart';
+import '../models/consumption_settings.dart';
+import '../services/alcohol_calculator.dart';
+import '../services/storage_service.dart';
+
+class ConsumptionProvider extends ChangeNotifier {
+  final StorageService _storage;
+  final _uuid = const Uuid();
+
+  List<DrinkEntry> _drinks = [];
+  List<Bottle> _bottles = [];
+  late ConsumptionSettings _settings;
+  Bottle? _selectedBottle;
+
+  ConsumptionProvider(this._storage) {
+    _drinks = _storage.getAllDrinks();
+    _bottles = _storage.getAllBottles();
+    _settings = _storage.getSettings();
+  }
+
+  // --- Getters ---
+
+  List<DrinkEntry> get drinks => _drinks;
+  List<Bottle> get bottles => _bottles;
+  ConsumptionSettings get settings => _settings;
+  Bottle? get selectedBottle => _selectedBottle;
+
+  double get dailyConsumed => _sumForPeriod(_startOfDay);
+  double get weeklyConsumed => _sumForPeriod(_startOfWeek);
+  double get monthlyConsumed => _sumForPeriod(_startOfMonth);
+
+  double get dailyRemaining =>
+      (settings.dailyLimit - dailyConsumed).clamp(0.0, settings.dailyLimit);
+  double get weeklyRemaining =>
+      (settings.weeklyLimit - weeklyConsumed).clamp(0.0, settings.weeklyLimit);
+  double get monthlyRemaining =>
+      (settings.monthlyLimit - monthlyConsumed)
+          .clamp(0.0, settings.monthlyLimit);
+
+  double get dailyFillPercent =>
+      settings.dailyLimit > 0 ? dailyRemaining / settings.dailyLimit : 0.0;
+  double get weeklyFillPercent =>
+      settings.weeklyLimit > 0 ? weeklyRemaining / settings.weeklyLimit : 0.0;
+  double get monthlyFillPercent =>
+      settings.monthlyLimit > 0
+          ? monthlyRemaining / settings.monthlyLimit
+          : 0.0;
+
+  bool get canDrink =>
+      dailyRemaining > 0 && weeklyRemaining > 0 && monthlyRemaining > 0;
+
+  String get lockReason {
+    final reasons = <String>[];
+    if (dailyRemaining <= 0) reasons.add('daily');
+    if (weeklyRemaining <= 0) reasons.add('weekly');
+    if (monthlyRemaining <= 0) reasons.add('monthly');
+    if (reasons.isEmpty) return '';
+    return 'You\'ve reached your ${reasons.join(' and ')} limit.';
+  }
+
+  /// The tightest remaining allowance across all three periods.
+  double get effectiveRemaining {
+    final vals = [dailyRemaining, weeklyRemaining, monthlyRemaining];
+    return vals.reduce((a, b) => a < b ? a : b);
+  }
+
+  /// Max ounces of the selected bottle the user can drink right now.
+  double? get maxOzForSelectedBottle {
+    final bottle = _selectedBottle;
+    if (bottle == null || bottle.abvPercent <= 0) return null;
+    final remaining = effectiveRemaining;
+    if (remaining <= 0) return 0;
+    return remaining * 0.6 / (bottle.abvPercent / 100.0);
+  }
+
+  void selectBottle(Bottle? bottle) {
+    _selectedBottle = bottle;
+    notifyListeners();
+  }
+
+  // --- Actions ---
+
+  Future<void> logDrink({
+    required double volumeOz,
+    required double abvPercent,
+    String? name,
+  }) async {
+    final stdDrinks = AlcoholCalculator.calculateStandardDrinks(
+      volumeOz: volumeOz,
+      abvPercent: abvPercent,
+    );
+    final entry = DrinkEntry(
+      id: _uuid.v4(),
+      volumeOz: volumeOz,
+      abvPercent: abvPercent,
+      standardDrinks: stdDrinks,
+      timestamp: DateTime.now(),
+      name: name,
+    );
+    await _storage.addDrink(entry);
+    _drinks = _storage.getAllDrinks();
+    notifyListeners();
+  }
+
+  Future<void> deleteDrink(String id) async {
+    await _storage.deleteDrink(id);
+    _drinks = _storage.getAllDrinks();
+    notifyListeners();
+  }
+
+  Future<void> clearAllDrinks() async {
+    await _storage.clearAllDrinks();
+    _drinks = [];
+    notifyListeners();
+  }
+
+  Future<void> updateSettings(ConsumptionSettings newSettings) async {
+    _settings = newSettings;
+    await _storage.saveSettings(newSettings);
+    notifyListeners();
+  }
+
+  // --- Bottle CRUD ---
+
+  Future<void> addBottle({
+    required String name,
+    required String type,
+    required double abvPercent,
+  }) async {
+    final bottle = Bottle(
+      id: _uuid.v4(),
+      name: name,
+      type: type,
+      abvPercent: abvPercent,
+    );
+    await _storage.addBottle(bottle);
+    _bottles = _storage.getAllBottles();
+    notifyListeners();
+  }
+
+  Future<void> deleteBottle(String id) async {
+    if (_selectedBottle?.id == id) _selectedBottle = null;
+    await _storage.deleteBottle(id);
+    _bottles = _storage.getAllBottles();
+    notifyListeners();
+  }
+
+  // --- Helpers ---
+
+  double _sumForPeriod(DateTime start) {
+    return _drinks
+        .where((d) => d.timestamp.isAfter(start))
+        .fold(0.0, (sum, d) => sum + d.standardDrinks);
+  }
+
+  DateTime get _startOfDay {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
+
+  DateTime get _startOfWeek {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return today.subtract(Duration(days: today.weekday - 1));
+  }
+
+  DateTime get _startOfMonth {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, 1);
+  }
+}
