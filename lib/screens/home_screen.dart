@@ -14,7 +14,6 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<ConsumptionProvider>();
     final theme = Theme.of(context);
-    final hasBottles = provider.bottles.isNotEmpty;
     final hasSelection = provider.selectedBottle != null;
     final canLog = hasSelection && provider.canDrink;
 
@@ -90,37 +89,44 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
             ),
-            _BottleSelectorSection(provider: provider, theme: theme),
-            if (!provider.canDrink && hasSelection)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.errorContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.lock, color: theme.colorScheme.error),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          provider.lockReason,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onErrorContainer,
-                          ),
-                        ),
+            // --- Fixed bottom section: dropdown + banner + button ---
+            Padding(
+              padding: const EdgeInsets.fromLTRB(32, 0, 32, 0),
+              child: SizedBox(
+                width: double.infinity,
+                child: DropdownMenu<String>(
+                  label: const Text('Select a bottle'),
+                  leadingIcon: const Icon(Icons.liquor),
+                  expandedInsets: EdgeInsets.zero,
+                  initialSelection: provider.selectedBottle?.id,
+                  dropdownMenuEntries: [
+                    const DropdownMenuEntry(value: '', label: 'None'),
+                    ...provider.bottles.map(
+                      (b) => DropdownMenuEntry(
+                        value: b.id,
+                        label: '${b.name} (${b.abvPercent}%)',
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
+                  onSelected: (id) {
+                    if (id == null || id.isEmpty) {
+                      provider.selectBottle(null);
+                    } else {
+                      final bottle = provider.bottles
+                          .where((b) => b.id == id)
+                          .firstOrNull;
+                      provider.selectBottle(bottle);
+                    }
+                  },
                 ),
               ),
+            ),
             Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.fromLTRB(32, 12, 32, 0),
+              child: _InfoBanner(provider: provider, theme: theme),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
               child: SizedBox(
                 width: double.infinity,
                 height: 56,
@@ -136,14 +142,16 @@ class HomeScreen extends StatelessWidget {
                           )
                       : null,
                   icon: Icon(
-                    canLog ? Icons.local_bar : (!hasBottles || !hasSelection ? Icons.local_bar : Icons.lock),
+                    canLog
+                        ? Icons.local_bar
+                        : (hasSelection && !provider.canDrink
+                            ? Icons.lock
+                            : Icons.local_bar),
                   ),
                   label: Text(
-                    canLog
-                        ? 'Log a Drink'
-                        : (!provider.canDrink && hasSelection
-                            ? 'Limit Reached'
-                            : 'Log a Drink'),
+                    hasSelection && !provider.canDrink
+                        ? 'Limit Reached'
+                        : 'Log a Drink',
                     style: const TextStyle(fontSize: 18),
                   ),
                 ),
@@ -156,148 +164,101 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class _BottleSelectorSection extends StatelessWidget {
+class _InfoBanner extends StatelessWidget {
   final ConsumptionProvider provider;
   final ThemeData theme;
 
-  const _BottleSelectorSection({
-    required this.provider,
-    required this.theme,
-  });
+  const _InfoBanner({required this.provider, required this.theme});
 
   @override
   Widget build(BuildContext context) {
     final hasBottles = provider.bottles.isNotEmpty;
     final hasSelection = provider.selectedBottle != null;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(32, 0, 32, 8),
-      child: Column(
-        children: [
-          if (hasBottles)
-            SizedBox(
-              width: double.infinity,
-              child: DropdownMenu<String>(
-                label: const Text('Select a bottle'),
-                leadingIcon: const Icon(Icons.liquor),
-                expandedInsets: EdgeInsets.zero,
-                initialSelection: provider.selectedBottle?.id,
-                dropdownMenuEntries: [
-                  const DropdownMenuEntry(value: '', label: 'None'),
-                  ...provider.bottles.map(
-                    (b) => DropdownMenuEntry(
-                      value: b.id,
-                      label: '${b.name} (${b.abvPercent}%)',
-                    ),
-                  ),
-                ],
-                onSelected: (id) {
-                  if (id == null || id.isEmpty) {
-                    provider.selectBottle(null);
-                  } else {
-                    final bottle = provider.bottles
-                        .where((b) => b.id == id)
-                        .firstOrNull;
-                    provider.selectBottle(bottle);
-                  }
-                },
-              ),
-            ),
-          const SizedBox(height: 12),
-          _buildBanner(context, hasBottles, hasSelection),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBanner(
-    BuildContext context,
-    bool hasBottles,
-    bool hasSelection,
-  ) {
+    // No bottles in inventory
     if (!hasBottles) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.info_outline, color: theme.colorScheme.onSurfaceVariant),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Add your bottles using the bottle icon above to get started.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ],
-        ),
+      return _banner(
+        icon: Icons.info_outline,
+        text: 'Add your bottles using the bottle icon above to get started.',
+        bgColor: theme.colorScheme.surfaceContainerHighest,
+        iconColor: theme.colorScheme.onSurfaceVariant,
+        textColor: theme.colorScheme.onSurfaceVariant,
       );
     }
 
+    // Bottles exist but none selected
     if (!hasSelection) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.arrow_upward, color: theme.colorScheme.onSurfaceVariant),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Select a bottle above to log a drink.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ],
-        ),
+      return _banner(
+        icon: Icons.arrow_upward,
+        text: 'Select a bottle above to log a drink.',
+        bgColor: theme.colorScheme.surfaceContainerHighest,
+        iconColor: theme.colorScheme.onSurfaceVariant,
+        textColor: theme.colorScheme.onSurfaceVariant,
       );
     }
 
+    // Limit reached
+    if (!provider.canDrink) {
+      return _banner(
+        icon: Icons.lock,
+        text: provider.lockReason,
+        bgColor: theme.colorScheme.errorContainer,
+        iconColor: theme.colorScheme.error,
+        textColor: theme.colorScheme.onErrorContainer,
+        bold: true,
+      );
+    }
+
+    // Bottle selected, can drink
     final maxAmount = provider.maxForSelectedBottle;
     final unitLabel = provider.displayUnitLabel;
 
-    if (maxAmount == null) return const SizedBox.shrink();
+    if (maxAmount == null || maxAmount <= 0) {
+      return _banner(
+        icon: Icons.block,
+        text: 'You\'ve reached your limit',
+        bgColor: theme.colorScheme.errorContainer,
+        iconColor: theme.colorScheme.error,
+        textColor: theme.colorScheme.onErrorContainer,
+        bold: true,
+      );
+    }
 
+    return _banner(
+      icon: Icons.local_drink,
+      text: 'You can have up to ${maxAmount.toStringAsFixed(1)} $unitLabel of ${provider.selectedBottle!.name}',
+      bgColor: theme.colorScheme.tertiaryContainer,
+      iconColor: theme.colorScheme.onTertiaryContainer,
+      textColor: theme.colorScheme.onTertiaryContainer,
+      bold: true,
+    );
+  }
+
+  Widget _banner({
+    required IconData icon,
+    required String text,
+    required Color bgColor,
+    required Color iconColor,
+    required Color textColor,
+    bool bold = false,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: maxAmount > 0
-            ? theme.colorScheme.tertiaryContainer
-            : theme.colorScheme.errorContainer,
+        color: bgColor,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
-          Icon(
-            maxAmount > 0 ? Icons.local_drink : Icons.block,
-            color: maxAmount > 0
-                ? theme.colorScheme.onTertiaryContainer
-                : theme.colorScheme.error,
-          ),
+          Icon(icon, color: iconColor),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              maxAmount > 0
-                  ? 'You can have up to ${maxAmount.toStringAsFixed(1)} $unitLabel of ${provider.selectedBottle!.name}'
-                  : 'You\'ve reached your limit',
+              text,
               style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: maxAmount > 0
-                    ? theme.colorScheme.onTertiaryContainer
-                    : theme.colorScheme.onErrorContainer,
+                fontWeight: bold ? FontWeight.w600 : null,
+                color: textColor,
               ),
             ),
           ),
