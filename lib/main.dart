@@ -33,6 +33,14 @@ class AlcoholMonitorApp extends StatelessWidget {
           brightness: Brightness.dark,
           useMaterial3: true,
         ),
+        builder: (context, child) {
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 430),
+              child: child,
+            ),
+          );
+        },
         home: const HomeScreen(),
       ),
     );
