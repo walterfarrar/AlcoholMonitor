@@ -2,11 +2,11 @@ import 'package:hive/hive.dart';
 
 part 'consumption_settings.g.dart';
 
-/// 0 = standard drinks, 1 = fl oz, 2 = mL
 enum DisplayUnit {
   standardDrinks,
   flOz,
-  mL;
+  mL,
+  cups;
 
   String get label {
     switch (this) {
@@ -16,6 +16,8 @@ enum DisplayUnit {
         return 'Fluid Ounces';
       case DisplayUnit.mL:
         return 'Milliliters';
+      case DisplayUnit.cups:
+        return 'Cups';
     }
   }
 
@@ -27,6 +29,8 @@ enum DisplayUnit {
         return 'oz';
       case DisplayUnit.mL:
         return 'mL';
+      case DisplayUnit.cups:
+        return 'cups';
     }
   }
 }

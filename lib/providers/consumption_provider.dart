@@ -91,6 +91,8 @@ class ConsumptionProvider extends ChangeNotifier {
         return AlcoholCalculator.stdDrinksToOz(stdDrinks, abvPercent);
       case DisplayUnit.mL:
         return AlcoholCalculator.stdDrinksToMl(stdDrinks, abvPercent);
+      case DisplayUnit.cups:
+        return AlcoholCalculator.stdDrinksToCups(stdDrinks, abvPercent);
       case DisplayUnit.standardDrinks:
         return stdDrinks;
     }
@@ -113,6 +115,22 @@ class ConsumptionProvider extends ChangeNotifier {
       return DisplayUnit.standardDrinks.shortLabel;
     }
     return _settings.displayUnit.shortLabel;
+  }
+
+  /// Converts a volume in the user's display unit to fl oz for storage.
+  double displayUnitToOz(double value) {
+    switch (_settings.displayUnit) {
+      case DisplayUnit.flOz:
+        return value;
+      case DisplayUnit.mL:
+        return value / AlcoholCalculator.ozPerMl;
+      case DisplayUnit.cups:
+        return AlcoholCalculator.cupsToOz(value);
+      case DisplayUnit.standardDrinks:
+        final bottle = _selectedBottle;
+        if (bottle == null || bottle.abvPercent <= 0) return 0;
+        return AlcoholCalculator.stdDrinksToOz(value, bottle.abvPercent);
+    }
   }
 
   void selectBottle(Bottle? bottle) {

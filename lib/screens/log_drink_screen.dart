@@ -4,18 +4,10 @@ import '../models/bottle.dart';
 import '../providers/consumption_provider.dart';
 import '../services/alcohol_calculator.dart';
 
-enum VolumeUnit { oz, cups }
-
-class _Preset {
-  final String label;
-  final double abv;
-  const _Preset(this.label, this.abv);
-}
-
 class LogDrinkScreen extends StatefulWidget {
-  final Bottle? preselectedBottle;
+  final Bottle bottle;
 
-  const LogDrinkScreen({super.key, this.preselectedBottle});
+  const LogDrinkScreen({super.key, required this.bottle});
 
   @override
   State<LogDrinkScreen> createState() => _LogDrinkScreenState();
@@ -23,60 +15,34 @@ class LogDrinkScreen extends StatefulWidget {
 
 class _LogDrinkScreenState extends State<LogDrinkScreen> {
   final _volumeController = TextEditingController();
-  final _abvController = TextEditingController();
-  final _nameController = TextEditingController();
-  VolumeUnit _unit = VolumeUnit.oz;
 
-  static const _presets = [
-    _Preset('Beer', 5.0),
-    _Preset('Wine', 12.0),
-    _Preset('Spirits', 40.0),
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    final bottle = widget.preselectedBottle;
-    if (bottle != null) {
-      _nameController.text = bottle.name;
-      _abvController.text = bottle.abvPercent.toString();
-    }
-  }
+  double get _inputVolume => double.tryParse(_volumeController.text) ?? 0;
 
   double get _volumeOz {
-    final raw = double.tryParse(_volumeController.text) ?? 0;
-    return _unit == VolumeUnit.cups ? AlcoholCalculator.cupsToOz(raw) : raw;
+    final provider = context.read<ConsumptionProvider>();
+    return provider.displayUnitToOz(_inputVolume);
   }
-
-  double get _abv => double.tryParse(_abvController.text) ?? 0;
 
   double get _calculatedStdDrinks =>
       AlcoholCalculator.calculateStandardDrinks(
         volumeOz: _volumeOz,
-        abvPercent: _abv,
+        abvPercent: widget.bottle.abvPercent,
       );
 
-  bool get _isValid => _volumeOz > 0 && _abv > 0 && _abv <= 100;
+  bool get _isValid => _inputVolume > 0;
 
   @override
   void dispose() {
     _volumeController.dispose();
-    _abvController.dispose();
-    _nameController.dispose();
     super.dispose();
-  }
-
-  void _selectPreset(_Preset preset) {
-    _abvController.text = preset.abv.toString();
-    setState(() {});
   }
 
   Future<void> _submit() async {
     final provider = context.read<ConsumptionProvider>();
     await provider.logDrink(
       volumeOz: _volumeOz,
-      abvPercent: _abv,
-      name: _nameController.text.isNotEmpty ? _nameController.text : null,
+      abvPercent: widget.bottle.abvPercent,
+      name: widget.bottle.name,
     );
     if (mounted) Navigator.pop(context);
   }
@@ -84,6 +50,8 @@ class _LogDrinkScreenState extends State<LogDrinkScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final provider = context.watch<ConsumptionProvider>();
+    final unitLabel = provider.displayUnitLabel;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Log a Drink')),
@@ -93,73 +61,37 @@ class _LogDrinkScreenState extends State<LogDrinkScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Name (optional)',
-                  hintText: 'e.g. IPA, Merlot, Margarita',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.local_bar),
-                ),
-                textCapitalization: TextCapitalization.words,
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _volumeController,
-                      decoration: InputDecoration(
-                        labelText: 'Volume',
-                        border: const OutlineInputBorder(),
-                        suffixText: _unit == VolumeUnit.oz ? 'oz' : 'cups',
-                        prefixIcon: const Icon(Icons.water_drop),
-                      ),
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      onChanged: (_) => setState(() {}),
+              Card(
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: theme.colorScheme.secondaryContainer,
+                    child: Icon(
+                      Icons.liquor,
+                      color: theme.colorScheme.onSecondaryContainer,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  SegmentedButton<VolumeUnit>(
-                    segments: const [
-                      ButtonSegment(value: VolumeUnit.oz, label: Text('oz')),
-                      ButtonSegment(
-                        value: VolumeUnit.cups,
-                        label: Text('cups'),
-                      ),
-                    ],
-                    selected: {_unit},
-                    onSelectionChanged: (s) => setState(() => _unit = s.first),
+                  title: Text(
+                    widget.bottle.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                ],
+                  subtitle: Text(
+                    '${widget.bottle.type}  ·  ${widget.bottle.abvPercent}% ABV',
+                  ),
+                ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               TextField(
-                controller: _abvController,
-                decoration: const InputDecoration(
-                  labelText: 'ABV %',
-                  border: OutlineInputBorder(),
-                  suffixText: '%',
-                  prefixIcon: Icon(Icons.percent),
+                controller: _volumeController,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'How much did you have?',
+                  border: const OutlineInputBorder(),
+                  suffixText: unitLabel,
+                  prefixIcon: const Icon(Icons.water_drop),
                 ),
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                children: _presets
-                    .map(
-                      (p) => ActionChip(
-                        label: Text('${p.label} (${p.abv}%)'),
-                        onPressed: () => _selectPreset(p),
-                        avatar: const Icon(Icons.auto_fix_high, size: 18),
-                      ),
-                    )
-                    .toList(),
               ),
               const SizedBox(height: 32),
               Container(

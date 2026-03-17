@@ -23,5 +23,10 @@ class AlcoholCalculator {
     return stdDrinksToOz(stdDrinks, abvPercent) * ozPerMl;
   }
 
+  /// Converts standard drinks to cups of a beverage at a given ABV%.
+  static double stdDrinksToCups(double stdDrinks, double abvPercent) {
+    return stdDrinksToOz(stdDrinks, abvPercent) / 8.0;
+  }
+
   static double cupsToOz(double cups) => cups * 8.0;
 }
