@@ -5,6 +5,7 @@ class ConsumptionBar extends StatelessWidget {
   final double fillPercent;
   final double remaining;
   final double limit;
+  final String unitLabel;
 
   const ConsumptionBar({
     super.key,
@@ -12,6 +13,7 @@ class ConsumptionBar extends StatelessWidget {
     required this.fillPercent,
     required this.remaining,
     required this.limit,
+    required this.unitLabel,
   });
 
   Color _fillColor(double percent) {
@@ -95,7 +97,7 @@ class ConsumptionBar extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          '${remaining.toStringAsFixed(1)} / ${limit.toStringAsFixed(1)}',
+          '${remaining.toStringAsFixed(1)} $unitLabel',
           style: theme.textTheme.bodySmall?.copyWith(
             fontWeight: FontWeight.bold,
             color: theme.colorScheme.onSurfaceVariant,

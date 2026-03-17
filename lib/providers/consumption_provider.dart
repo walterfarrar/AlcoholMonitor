@@ -67,13 +67,52 @@ class ConsumptionProvider extends ChangeNotifier {
     return vals.reduce((a, b) => a < b ? a : b);
   }
 
-  /// Max ounces of the selected bottle the user can drink right now.
-  double? get maxOzForSelectedBottle {
+  DisplayUnit get displayUnit => _settings.displayUnit;
+
+  /// Whether we can show converted units (need a bottle selected).
+  bool get hasBottleForConversion => _selectedBottle != null;
+
+  /// Max beverage of the selected bottle the user can drink right now,
+  /// in the user's preferred display unit.
+  double? get maxForSelectedBottle {
     final bottle = _selectedBottle;
     if (bottle == null || bottle.abvPercent <= 0) return null;
     final remaining = effectiveRemaining;
     if (remaining <= 0) return 0;
-    return remaining * 0.6 / (bottle.abvPercent / 100.0);
+    return _convertStdDrinks(remaining, bottle.abvPercent);
+  }
+
+  /// Converts a standard-drink amount to the preferred display unit,
+  /// using the selected bottle's ABV. Falls back to standard drinks
+  /// when no bottle is selected.
+  double _convertStdDrinks(double stdDrinks, double abvPercent) {
+    switch (_settings.displayUnit) {
+      case DisplayUnit.flOz:
+        return AlcoholCalculator.stdDrinksToOz(stdDrinks, abvPercent);
+      case DisplayUnit.mL:
+        return AlcoholCalculator.stdDrinksToMl(stdDrinks, abvPercent);
+      case DisplayUnit.standardDrinks:
+        return stdDrinks;
+    }
+  }
+
+  /// Returns the display value for a remaining amount. Uses the selected
+  /// bottle's ABV when a bottle is selected and unit != standardDrinks;
+  /// otherwise returns standard drinks.
+  double displayValue(double stdDrinks) {
+    final bottle = _selectedBottle;
+    if (bottle != null && _settings.displayUnit != DisplayUnit.standardDrinks) {
+      return _convertStdDrinks(stdDrinks, bottle.abvPercent);
+    }
+    return stdDrinks;
+  }
+
+  /// The short unit label for what's currently being displayed.
+  String get displayUnitLabel {
+    if (_selectedBottle == null && _settings.displayUnit != DisplayUnit.standardDrinks) {
+      return DisplayUnit.standardDrinks.shortLabel;
+    }
+    return _settings.displayUnit.shortLabel;
   }
 
   void selectBottle(Bottle? bottle) {

@@ -14,6 +14,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late double _daily;
   late double _weekly;
   late double _monthly;
+  late DisplayUnit _displayUnit;
 
   @override
   void initState() {
@@ -22,6 +23,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _daily = settings.dailyLimit;
     _weekly = settings.weeklyLimit;
     _monthly = settings.monthlyLimit;
+    _displayUnit = settings.displayUnit;
   }
 
   Future<void> _save() async {
@@ -30,6 +32,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         dailyLimit: _daily,
         weeklyLimit: _weekly,
         monthlyLimit: _monthly,
+        displayUnitIndex: _displayUnit.index,
       ),
     );
     if (mounted) Navigator.pop(context);
@@ -151,6 +154,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onChanged: (v) => setState(() => _monthly = v),
                   ),
                   const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 12),
+                  Card(
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 16,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Display Unit',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          Text(
+                            'Unit shown under bars and in the bottle banner (oz/mL require a bottle selected)',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          SegmentedButton<DisplayUnit>(
+                            segments: DisplayUnit.values
+                                .map(
+                                  (u) => ButtonSegment(
+                                    value: u,
+                                    label: Text(u.shortLabel),
+                                  ),
+                                )
+                                .toList(),
+                            selected: {_displayUnit},
+                            onSelectionChanged: (s) =>
+                                setState(() => _displayUnit = s.first),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   const Divider(),
                   const SizedBox(height: 8),
                   OutlinedButton.icon(

@@ -58,8 +58,9 @@ class HomeScreen extends StatelessWidget {
                       child: ConsumptionBar(
                         label: 'Day',
                         fillPercent: provider.dailyFillPercent,
-                        remaining: provider.dailyRemaining,
-                        limit: provider.settings.dailyLimit,
+                        remaining: provider.displayValue(provider.dailyRemaining),
+                        limit: provider.displayValue(provider.settings.dailyLimit),
+                        unitLabel: provider.displayUnitLabel,
                       ),
                     ),
                     const SizedBox(width: 20),
@@ -67,8 +68,9 @@ class HomeScreen extends StatelessWidget {
                       child: ConsumptionBar(
                         label: 'Week',
                         fillPercent: provider.weeklyFillPercent,
-                        remaining: provider.weeklyRemaining,
-                        limit: provider.settings.weeklyLimit,
+                        remaining: provider.displayValue(provider.weeklyRemaining),
+                        limit: provider.displayValue(provider.settings.weeklyLimit),
+                        unitLabel: provider.displayUnitLabel,
                       ),
                     ),
                     const SizedBox(width: 20),
@@ -76,8 +78,9 @@ class HomeScreen extends StatelessWidget {
                       child: ConsumptionBar(
                         label: 'Month',
                         fillPercent: provider.monthlyFillPercent,
-                        remaining: provider.monthlyRemaining,
-                        limit: provider.settings.monthlyLimit,
+                        remaining: provider.displayValue(provider.monthlyRemaining),
+                        limit: provider.displayValue(provider.settings.monthlyLimit),
+                        unitLabel: provider.displayUnitLabel,
                       ),
                     ),
                   ],
@@ -159,7 +162,8 @@ class _BottleSelectorSection extends StatelessWidget {
   Widget build(BuildContext context) {
     if (provider.bottles.isEmpty) return const SizedBox.shrink();
 
-    final maxOz = provider.maxOzForSelectedBottle;
+    final maxAmount = provider.maxForSelectedBottle;
+    final unitLabel = provider.displayUnitLabel;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(32, 0, 32, 8),
@@ -193,13 +197,13 @@ class _BottleSelectorSection extends StatelessWidget {
               },
             ),
           ),
-          if (provider.selectedBottle != null && maxOz != null) ...[
+          if (provider.selectedBottle != null && maxAmount != null) ...[
             const SizedBox(height: 12),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
-                color: maxOz > 0
+                color: maxAmount > 0
                     ? theme.colorScheme.tertiaryContainer
                     : theme.colorScheme.errorContainer,
                 borderRadius: BorderRadius.circular(12),
@@ -207,20 +211,20 @@ class _BottleSelectorSection extends StatelessWidget {
               child: Row(
                 children: [
                   Icon(
-                    maxOz > 0 ? Icons.local_drink : Icons.block,
-                    color: maxOz > 0
+                    maxAmount > 0 ? Icons.local_drink : Icons.block,
+                    color: maxAmount > 0
                         ? theme.colorScheme.onTertiaryContainer
                         : theme.colorScheme.error,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      maxOz > 0
-                          ? 'You can have up to ${maxOz.toStringAsFixed(1)} oz of ${provider.selectedBottle!.name}'
+                      maxAmount > 0
+                          ? 'You can have up to ${maxAmount.toStringAsFixed(1)} $unitLabel of ${provider.selectedBottle!.name}'
                           : 'You\'ve reached your limit',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: maxOz > 0
+                        color: maxAmount > 0
                             ? theme.colorScheme.onTertiaryContainer
                             : theme.colorScheme.onErrorContainer,
                       ),
