@@ -60,7 +60,7 @@ class HomeScreen extends StatelessWidget {
                       child: ConsumptionBar(
                         label: 'Day',
                         fillPercent: provider.dailyFillPercent,
-                        remaining: provider.displayValue(provider.dailyRemaining),
+                        remaining: provider.displayValue(provider.dailyEffectiveRemaining),
                         limit: provider.displayValue(provider.settings.dailyLimit),
                         unitLabel: provider.displayUnitLabel,
                       ),
@@ -70,7 +70,7 @@ class HomeScreen extends StatelessWidget {
                       child: ConsumptionBar(
                         label: 'Week',
                         fillPercent: provider.weeklyFillPercent,
-                        remaining: provider.displayValue(provider.weeklyRemaining),
+                        remaining: provider.displayValue(provider.weeklyEffectiveRemaining),
                         limit: provider.displayValue(provider.settings.weeklyLimit),
                         unitLabel: provider.displayUnitLabel,
                       ),
@@ -80,7 +80,7 @@ class HomeScreen extends StatelessWidget {
                       child: ConsumptionBar(
                         label: 'Month',
                         fillPercent: provider.monthlyFillPercent,
-                        remaining: provider.displayValue(provider.monthlyRemaining),
+                        remaining: provider.displayValue(provider.monthlyEffectiveRemaining),
                         limit: provider.displayValue(provider.settings.monthlyLimit),
                         unitLabel: provider.displayUnitLabel,
                       ),

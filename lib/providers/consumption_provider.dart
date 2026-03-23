@@ -40,13 +40,20 @@ class ConsumptionProvider extends ChangeNotifier {
       (settings.monthlyLimit - monthlyConsumed)
           .clamp(0.0, settings.monthlyLimit);
 
+  /// Effective remaining capped by tighter limits from longer periods.
+  double get dailyEffectiveRemaining =>
+      [dailyRemaining, weeklyRemaining, monthlyRemaining].reduce((a, b) => a < b ? a : b);
+  double get weeklyEffectiveRemaining =>
+      [weeklyRemaining, monthlyRemaining].reduce((a, b) => a < b ? a : b);
+  double get monthlyEffectiveRemaining => monthlyRemaining;
+
   double get dailyFillPercent =>
-      settings.dailyLimit > 0 ? dailyRemaining / settings.dailyLimit : 0.0;
+      settings.dailyLimit > 0 ? dailyEffectiveRemaining / settings.dailyLimit : 0.0;
   double get weeklyFillPercent =>
-      settings.weeklyLimit > 0 ? weeklyRemaining / settings.weeklyLimit : 0.0;
+      settings.weeklyLimit > 0 ? weeklyEffectiveRemaining / settings.weeklyLimit : 0.0;
   double get monthlyFillPercent =>
       settings.monthlyLimit > 0
-          ? monthlyRemaining / settings.monthlyLimit
+          ? monthlyEffectiveRemaining / settings.monthlyLimit
           : 0.0;
 
   bool get canDrink =>
