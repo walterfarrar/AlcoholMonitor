@@ -56,10 +56,30 @@ class ConsumptionProvider extends ChangeNotifier {
           ? monthlyEffectiveRemaining / settings.monthlyLimit
           : 0.0;
 
+  bool get isPastCutoff {
+    final cutoff = _settings.cutoffMinutes;
+    if (cutoff == null) return false;
+    final now = DateTime.now();
+    final nowMinutes = now.hour * 60 + now.minute;
+    return nowMinutes >= cutoff;
+  }
+
   bool get canDrink =>
-      dailyRemaining > 0 && weeklyRemaining > 0 && monthlyRemaining > 0;
+      dailyRemaining > 0 &&
+      weeklyRemaining > 0 &&
+      monthlyRemaining > 0 &&
+      !isPastCutoff;
 
   String get lockReason {
+    if (isPastCutoff) {
+      final cutoff = _settings.cutoffMinutes!;
+      final h = cutoff ~/ 60;
+      final m = cutoff % 60;
+      final period = h >= 12 ? 'PM' : 'AM';
+      final h12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
+      final timeStr = '${h12.toString()}:${m.toString().padLeft(2, '0')} $period';
+      return 'No drinks after $timeStr.';
+    }
     final reasons = <String>[];
     if (dailyRemaining <= 0) reasons.add('daily');
     if (weeklyRemaining <= 0) reasons.add('weekly');

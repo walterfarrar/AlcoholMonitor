@@ -15,6 +15,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late double _weekly;
   late double _monthly;
   late DisplayUnit _displayUnit;
+  int? _cutoffMinutes;
 
   @override
   void initState() {
@@ -24,6 +25,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _weekly = settings.weeklyLimit;
     _monthly = settings.monthlyLimit;
     _displayUnit = settings.displayUnit;
+    _cutoffMinutes = settings.cutoffMinutes;
   }
 
   Future<void> _save() async {
@@ -33,9 +35,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
         weeklyLimit: _weekly,
         monthlyLimit: _monthly,
         displayUnitIndex: _displayUnit.index,
+        cutoffMinutes: _cutoffMinutes,
       ),
     );
     if (mounted) Navigator.pop(context);
+  }
+
+  String _formatTime(int totalMinutes) {
+    final h = totalMinutes ~/ 60;
+    final m = totalMinutes % 60;
+    final period = h >= 12 ? 'PM' : 'AM';
+    final h12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
+    return '${h12.toString()}:${m.toString().padLeft(2, '0')} $period';
+  }
+
+  Future<void> _pickCutoffTime() async {
+    final initial = _cutoffMinutes != null
+        ? TimeOfDay(hour: _cutoffMinutes! ~/ 60, minute: _cutoffMinutes! % 60)
+        : const TimeOfDay(hour: 22, minute: 0);
+    final picked = await showTimePicker(context: context, initialTime: initial);
+    if (picked != null) {
+      setState(() => _cutoffMinutes = picked.hour * 60 + picked.minute);
+    }
   }
 
   void _confirmReset(BuildContext context) {
@@ -190,6 +211,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             onSelectionChanged: (s) =>
                                 setState(() => _displayUnit = s.first),
                           ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Card(
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 16,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Cutoff Time',
+                                      style: Theme.of(context).textTheme.titleMedium,
+                                    ),
+                                    Text(
+                                      'No drinks allowed after this time each day',
+                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Switch(
+                                value: _cutoffMinutes != null,
+                                onChanged: (on) {
+                                  setState(() {
+                                    _cutoffMinutes = on ? 22 * 60 : null;
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                          if (_cutoffMinutes != null) ...[
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: _pickCutoffTime,
+                                icon: const Icon(Icons.access_time),
+                                label: Text(_formatTime(_cutoffMinutes!)),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),

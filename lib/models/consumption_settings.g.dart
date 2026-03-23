@@ -21,13 +21,14 @@ class ConsumptionSettingsAdapter extends TypeAdapter<ConsumptionSettings> {
       weeklyLimit: fields[1] as double,
       monthlyLimit: fields[2] as double,
       displayUnitIndex: fields[3] as int?,
+      cutoffMinutes: fields[4] as int?,
     );
   }
 
   @override
   void write(BinaryWriter writer, ConsumptionSettings obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(5)
       ..writeByte(0)
       ..write(obj.dailyLimit)
       ..writeByte(1)
@@ -35,7 +36,9 @@ class ConsumptionSettingsAdapter extends TypeAdapter<ConsumptionSettings> {
       ..writeByte(2)
       ..write(obj.monthlyLimit)
       ..writeByte(3)
-      ..write(obj.displayUnitIndex);
+      ..write(obj.displayUnitIndex)
+      ..writeByte(4)
+      ..write(obj.cutoffMinutes);
   }
 
   @override
