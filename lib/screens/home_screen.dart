@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/consumption_provider.dart';
@@ -164,18 +166,59 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class _InfoBanner extends StatelessWidget {
+class _InfoBanner extends StatefulWidget {
   final ConsumptionProvider provider;
   final ThemeData theme;
 
   const _InfoBanner({required this.provider, required this.theme});
 
   @override
+  State<_InfoBanner> createState() => _InfoBannerState();
+}
+
+class _InfoBannerState extends State<_InfoBanner> {
+  Timer? _timer;
+  int? _syncedCutoffMinutes;
+
+  ConsumptionProvider get provider => widget.provider;
+  ThemeData get theme => widget.theme;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncedCutoffMinutes = widget.provider.settings.cutoffMinutes;
+    _syncTimer();
+  }
+
+  void _ensureTimerMatchesSettings() {
+    final c = widget.provider.settings.cutoffMinutes;
+    if (c != _syncedCutoffMinutes) {
+      _syncedCutoffMinutes = c;
+      _syncTimer();
+    }
+  }
+
+  void _syncTimer() {
+    _timer?.cancel();
+    if (_syncedCutoffMinutes != null) {
+      _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() {});
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    _ensureTimerMatchesSettings();
     final hasBottles = provider.bottles.isNotEmpty;
     final hasSelection = provider.selectedBottle != null;
 
-    // No bottles in inventory
     if (!hasBottles) {
       return _banner(
         icon: Icons.info_outline,
@@ -186,7 +229,6 @@ class _InfoBanner extends StatelessWidget {
       );
     }
 
-    // Bottles exist but none selected
     if (!hasSelection) {
       return _banner(
         icon: Icons.arrow_upward,
@@ -197,7 +239,6 @@ class _InfoBanner extends StatelessWidget {
       );
     }
 
-    // Limit reached
     if (!provider.canDrink) {
       return _banner(
         icon: Icons.lock,
@@ -209,7 +250,6 @@ class _InfoBanner extends StatelessWidget {
       );
     }
 
-    // Bottle selected, can drink
     final maxAmount = provider.maxForSelectedBottle;
     final unitLabel = provider.displayUnitLabel;
 
@@ -242,6 +282,7 @@ class _InfoBanner extends StatelessWidget {
     required Color textColor,
     bool bold = false,
   }) {
+    final subtitle = provider.cutoffBannerSubtitleLine;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -250,16 +291,32 @@ class _InfoBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, color: iconColor),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              text,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: bold ? FontWeight.w600 : null,
-                color: textColor,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  text,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: bold ? FontWeight.w600 : null,
+                    color: textColor,
+                  ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    subtitle,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: textColor.withValues(alpha: 0.85),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ],

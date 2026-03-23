@@ -56,12 +56,49 @@ class ConsumptionProvider extends ChangeNotifier {
           ? monthlyEffectiveRemaining / settings.monthlyLimit
           : 0.0;
 
+  DateTime _dateTimeAtCutoffToday() {
+    final c = _settings.cutoffMinutes!;
+    final n = DateTime.now();
+    return DateTime(n.year, n.month, n.day, c ~/ 60, c % 60, 0);
+  }
+
   bool get isPastCutoff {
-    final cutoff = _settings.cutoffMinutes;
-    if (cutoff == null) return false;
+    if (_settings.cutoffMinutes == null) return false;
+    return !DateTime.now().isBefore(_dateTimeAtCutoffToday());
+  }
+
+  /// e.g. "10:00pm" (lowercase am/pm)
+  String get formattedCutoffTimeDisplay {
+    final c = _settings.cutoffMinutes!;
+    final h = c ~/ 60;
+    final m = c % 60;
+    final period = h >= 12 ? 'pm' : 'am';
+    final h12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
+    return '$h12:${m.toString().padLeft(2, '0')}$period';
+  }
+
+  /// Second line for info banner; `null` when cutoff is disabled.
+  String? get cutoffBannerSubtitleLine {
+    if (_settings.cutoffMinutes == null) return null;
+    final label = formattedCutoffTimeDisplay;
     final now = DateTime.now();
-    final nowMinutes = now.hour * 60 + now.minute;
-    return nowMinutes >= cutoff;
+    final end = _dateTimeAtCutoffToday();
+    if (now.isBefore(end)) {
+      final d = end.difference(now);
+      return 'Cutoff time: $label (${_formatDurationHms(d)})';
+    }
+    final midnight = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+    final d = midnight.difference(now);
+    return 'Cutoff time: $label (passed · next day in ${_formatDurationHms(d)})';
+  }
+
+  static String _formatDurationHms(Duration d) {
+    var dur = d;
+    if (dur.isNegative) dur = Duration.zero;
+    final h = dur.inHours;
+    final m = dur.inMinutes.remainder(60);
+    final s = dur.inSeconds.remainder(60);
+    return '${h}h ${m}m ${s}s';
   }
 
   bool get canDrink =>
@@ -72,13 +109,7 @@ class ConsumptionProvider extends ChangeNotifier {
 
   String get lockReason {
     if (isPastCutoff) {
-      final cutoff = _settings.cutoffMinutes!;
-      final h = cutoff ~/ 60;
-      final m = cutoff % 60;
-      final period = h >= 12 ? 'PM' : 'AM';
-      final h12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
-      final timeStr = '${h12.toString()}:${m.toString().padLeft(2, '0')} $period';
-      return 'No drinks after $timeStr.';
+      return 'No drinks after $formattedCutoffTimeDisplay.';
     }
     final reasons = <String>[];
     if (dailyRemaining <= 0) reasons.add('daily');
